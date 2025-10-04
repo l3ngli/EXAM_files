@@ -1,0 +1,261 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+using namespace std;
+
+class Person {
+protected:
+    string name;
+public:
+    Person(const string& n = "") : name(n) {}
+    
+    string getName() const { 
+        return name; 
+    }
+
+    void setName(const string& n) { 
+        name = n; 
+    }
+
+    virtual void print() const {
+        cout << "Name: " << name << "\n";
+    }
+};
+
+class Contact : public Person {
+private:
+    string phone;
+    string email;
+public:
+    Contact(const string& n = "", const string& p = "", const string& e = "")
+        : Person(n), phone(p), email(e) {}
+
+    string getPhone() const { 
+        return phone; 
+    }
+
+    void setPhone(const string& p) { 
+        phone = p; 
+    }
+
+    string getEmail() const { 
+        return email; 
+    }
+
+    void setEmail(const string& e) { 
+        email = e; 
+    }
+
+    void print() const override {
+        cout << "Name: " << name << "\n";
+        cout << "Phone: " << phone << "\n";
+        cout << "Email: " << email << "\n";
+    }
+
+    string toFile() const {
+        return name + ";" + phone + ";" + email + "\n";
+    }
+
+    static Contact fromFile(const string& line) {
+        size_t p1 = line.find(';');
+        size_t p2 = line.rfind(';');
+        string n = line.substr(0, p1);
+        string ph = line.substr(p1 + 1, p2 - p1 - 1);
+        string email = line.substr(p2 + 1);
+        return Contact(n, ph, email);
+    }
+};
+
+template <typename T>
+class Container {
+private:
+    vector<T> items;
+public:
+    void add(const T& item) {
+        items.push_back(item);
+    }
+
+    bool removeByName(const string& name) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items[i].getName() == name) {
+                items.erase(items.begin() + i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    T* findByName(const string& name) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items[i].getName() == name)
+                return &items[i];
+        }
+        return 0;
+    }
+
+    vector<T>& getAll() { 
+        return items; 
+    }
+
+    void printAll() const {
+        if (items.size() == 0) {
+            cout << "Сontacts not found\n";
+            return;
+        }
+        for (int i = 0; i < items.size(); i++)
+            items[i].print();
+    }
+
+    void removeAll() {
+        items = {};
+    }
+};
+
+class PhoneBook {
+private:
+    Container<Contact> contacts;
+    string filename;
+public:
+    PhoneBook(const string& file = "contacts.txt") : filename(file) {
+        load();
+    }
+
+    void addContact(const Contact& c) {
+        contacts.add(c);
+        save();
+    }
+
+    void deleteContact(const string& name) {
+        bool j = contacts.removeByName(name);
+        if (j) {
+            cout << "Contact deleted\n";
+            save();
+        }
+        else {
+            cout << "Contact not found\n";
+        }
+    }
+
+    void editContact(const string& name) {
+        Contact* c = contacts.findByName(name);
+        if (c == 0) {
+            cout << "Contact not found\n";
+            return;
+        }
+        cout << "Edit contact:\n";
+        cout << "1. Name\n2. Phone\n3. Email\n\nENTER YOUR CHOICE: ";
+        int choice;
+        cin >> choice;
+        cin.ignore();
+        string value;
+        if (choice == 1) {
+            cout << "Enter new name: ";
+            getline(cin, value);
+            c->setName(value);
+        }
+        else if (choice == 2) {
+            cout << "Enter new phone: ";
+            getline(cin, value);
+            c->setPhone(value);
+        }
+        else if (choice == 3) {
+            cout << "Enter new email: ";
+            getline(cin, value);
+            c->setEmail(value);
+        }
+        else {
+            cout << "Invalid choice\n";
+            return;
+        }
+        cout << "Done!\n";
+        save();
+    }
+
+    void showAll() const {
+        contacts.printAll();
+    }
+
+    void save() {
+        ofstream out(filename);
+        if (!out.is_open()) {
+            cout << "Error\n";
+            return;
+        }
+        for (auto& c : contacts.getAll()) {
+            out << c.toFile();
+        }
+    }
+
+    void load() {
+        ifstream in(filename);
+        if (!in.is_open()) return;
+
+        contacts.removeAll(); 
+
+        string line;
+        while (getline(in, line)) {
+            Contact c = Contact::fromFile(line);
+            if (c.getName() != "") 
+                contacts.add(c);
+        }
+        in.close();
+    }
+};
+
+class Menu {
+public:
+    static void show() {
+        cout << "\n\tPHONEBOOK MENU\n";
+        cout << "1. Add contact\n";
+        cout << "2. Delete contact\n";
+        cout << "3. Edit contact\n";
+        cout << "4. Show all contacts\n";
+        cout << "0. Exit\n";
+        cout << "ENTER YOUR CHOICE: ";
+    }
+};
+
+int main() {
+    PhoneBook pb;
+    int choice;
+
+    do {
+        Menu::show();
+        cin >> choice;
+        cin.ignore();
+
+        if (choice == 1) {
+            string name, phone, email;
+            cout << "Name: ";
+            getline(cin, name);
+            cout << "Phone: ";
+            getline(cin, phone);
+            cout << "Email: ";
+            getline(cin, email);
+            pb.addContact(Contact(name, phone, email));
+        }
+        else if (choice == 2) {
+            string name;
+            cout << "Enter name to delete: ";
+            getline(cin, name);
+            pb.deleteContact(name);
+        }
+        else if (choice == 3) {
+            string name;
+            cout << "Enter name to edit: ";
+            getline(cin, name);
+            pb.editContact(name);
+        }
+        else if (choice == 4) {
+            pb.showAll();
+        }
+        else if (choice == 0) {
+            cout << "Exiting\n";
+        }
+        else {
+            cout << "Invalid choice\n";
+        }
+    } while (choice != 0);
+    return 0;
+}
